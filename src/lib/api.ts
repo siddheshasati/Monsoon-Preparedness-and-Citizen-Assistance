@@ -2,7 +2,10 @@
 
 const getApiUrl = () => {
   // @ts-ignore
-  const envUrl = import.meta.env?.VITE_API_URL;
+  let envUrl = import.meta.env?.VITE_API_URL;
+  if (!envUrl && typeof process !== "undefined" && process.env) {
+    envUrl = process.env.VITE_API_URL;
+  }
   return envUrl || "http://localhost:8000";
 };
 
