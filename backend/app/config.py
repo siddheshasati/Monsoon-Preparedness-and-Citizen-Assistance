@@ -4,6 +4,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+def _get_database_url() -> str:
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        return db_url
+    try:
+        # Test if we can write to the local directory
+        test_file = "./.db_write_test"
+        with open(test_file, "w") as f:
+            f.write("")
+        os.remove(test_file)
+        return "sqlite:///./monsoon_copilot.db"
+    except OSError:
+        return "sqlite:////tmp/monsoon_copilot.db"
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "AI Monsoon Copilot API"
     
@@ -23,7 +37,7 @@ class Settings(BaseSettings):
     CLOUDINARY_URL: str | None = os.getenv("CLOUDINARY_URL")
     
     # Databases
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./monsoon_copilot.db")
+    DATABASE_URL: str = _get_database_url()
     REDIS_URL: str | None = os.getenv("REDIS_URL")
     
     # Auth
