@@ -1,0 +1,52 @@
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from backend.app.config import settings
+from backend.app.database import engine, Base
+from backend.app.routes import auth, weather, planner, hazards, chat, family, alerts
+
+# Ensure uploads directory exists
+os.makedirs("uploads", exist_ok=True)
+
+# Auto-migrate/create SQLite/PostgreSQL schemas on startup
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    description="Backend API services for the AI Monsoon Copilot platform",
+    version="1.0.0"
+)
+
+# Configure CORS for React integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permits all origins for easy development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Statically serve hazard images
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Mount API Routers under /api
+app.include_router(auth.router, prefix="/api")
+app.include_router(weather.router, prefix="/api")
+app.include_router(planner.router, prefix="/api")
+app.include_router(hazards.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
+app.include_router(family.router, prefix="/api")
+app.include_router(alerts.router, prefix="/api")
+
+@app.get("/")
+def read_root():
+    return {
+        "status": "healthy",
+        "service": settings.PROJECT_NAME,
+        "message": "Welcome to AI Monsoon Copilot API. Head to /docs for Swagger documentation."
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("backend.app.main:app", host="0.0.0.0", port=8000, reload=True)

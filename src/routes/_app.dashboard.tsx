@@ -1,0 +1,339 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import {
+  CloudRain, Droplets, Wind, Gauge, Eye,
+  ShieldAlert, Sparkles, Users, MapPin, Navigation, Home,
+} from "lucide-react";
+import {
+  Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
+} from "recharts";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { api, WeatherResponse, ChecklistItem } from "@/lib/api";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/_app/dashboard")({
+  head: () => ({ meta: [{ title: "Dashboard · Monsoon Copilot" }] }),
+  component: Dashboard,
+});
+
+function Stat({ icon: Icon, label, value, unit, tint = "text-primary" }: any) {
+  return (
+    <div className="glass rounded-2xl p-4">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-medium text-muted-foreground">{label}</div>
+        <Icon className={`h-4 w-4 ${tint}`} />
+      </div>
+      <div className="mt-2 font-display text-3xl font-bold">
+        {value}<span className="ml-1 text-sm text-muted-foreground">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard() {
+  const [weather, setWeather] = useState<WeatherResponse | null>(null);
+  const [rainForecast, setRainForecast] = useState<Array<{ hour: string; mm: number }>>([]);
+  const [weeklyForecast, setWeeklyForecast] = useState<Array<{ day: string; high: number; low: number; rain: number }>>([]);
+  const [family, setFamily] = useState<any[]>([]);
+  const [shelters, setShelters] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        const w = await api.weather.getCurrent();
+        setWeather(w);
+      } catch (err: any) {
+        toast.error("Failed to load live weather.");
+      }
+
+      try {
+        const f = await api.weather.getForecast();
+        setRainForecast(f.hourly_rain);
+        setWeeklyForecast(f.week);
+      } catch (err) {
+        console.error("Failed to load weather forecasts");
+      }
+
+      try {
+        const fam = await api.family.get();
+        setFamily(fam);
+      } catch (err) {
+        console.error("Failed to load family status");
+      }
+
+      try {
+        const sh = await api.family.getShelters();
+        setShelters(sh);
+      } catch (err) {
+        console.error("Failed to load shelter listings");
+      }
+
+      try {
+        const al = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/alerts`)
+          .then((r) => r.json());
+        setAlerts(al);
+      } catch (err) {
+        console.error("Failed to load active alerts");
+      }
+
+      try {
+        const cl = await api.checklist.get();
+        setChecklist(cl);
+      } catch (err) {
+        console.error("Failed to load checklist info");
+      }
+      
+      setLoading(false);
+    }
+
+    loadDashboardData();
+  }, []);
+
+  if (loading || !weather) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <CloudRain className="h-10 w-10 animate-bounce text-primary" />
+          <p className="text-sm font-semibold text-muted-foreground">Hydrating dashboard statistics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate checklist counts
+  const totalChecklist = checklist.length;
+  const doneChecklist = checklist.filter((c) => c.done).length;
+  const kitDone = checklist.filter((c) => c.category === "Kit" && c.done).length;
+  const kitTotal = checklist.filter((c) => c.category === "Kit").length;
+  const familyDone = checklist.filter((c) => c.category === "Family" && c.done).length;
+  const familyTotal = checklist.filter((c) => c.category === "Family").length;
+  const homeDone = checklist.filter((c) => c.category === "Home" && c.done).length;
+  const homeTotal = checklist.filter((c) => c.category === "Home").length;
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+        className="flex flex-wrap items-end justify-between gap-4"
+      >
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-primary">
+            Good evening · {weather.city}
+          </div>
+          <h1 className="mt-1 font-display text-4xl font-bold">Your monsoon briefing</h1>
+          <p className="text-sm text-muted-foreground">Updated {new Date(weather.updatedAt).toLocaleTimeString()}</p>
+        </div>
+        <div className="glass flex items-center gap-3 rounded-2xl px-4 py-3">
+          <div className="animate-float text-4xl">🌧️</div>
+          <div>
+            <div className="font-display text-3xl font-bold">{weather.temp}°C</div>
+            <div className="text-xs text-muted-foreground">{weather.condition}</div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Stats */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat icon={Droplets} label="Rainfall (1h)" value={weather.rainfall} unit="mm" tint="text-primary" />
+        <Stat icon={Wind} label="Wind" value={weather.wind} unit="km/h" tint="text-accent" />
+        <Stat icon={Gauge} label="Pressure" value={weather.pressure} unit="hPa" tint="text-primary" />
+        <Stat icon={Eye} label="Visibility" value={weather.visibility} unit="km" tint="text-warning" />
+      </div>
+
+      {/* Main grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Rainfall forecast chart */}
+        <div className="glass rounded-3xl p-6 lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold">Hyperlocal rainfall — next 8 hours</h3>
+              <p className="text-xs text-muted-foreground">Intensity (mm) & probability</p>
+            </div>
+            <Badge className="gradient-hero border-0 text-white">Heavy Rain Alert</Badge>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={rainForecast}>
+                <defs>
+                  <linearGradient id="rainGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.52 0.19 255)" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="oklch(0.72 0.15 235)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.02 230)" />
+                <XAxis dataKey="hour" stroke="oklch(0.5 0.03 250)" fontSize={12} />
+                <YAxis stroke="oklch(0.5 0.03 250)" fontSize={12} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid oklch(0.9 0.02 230)" }} />
+                <Area type="monotone" dataKey="mm" stroke="oklch(0.52 0.19 255)" strokeWidth={2.5} fill="url(#rainGrad)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Flood risk */}
+        <div className="glass rounded-3xl p-6">
+          <h3 className="font-semibold">Flood Risk</h3>
+          <p className="text-xs text-muted-foreground">Based on rainfall + terrain + drainage</p>
+          <div className="mt-6 text-center">
+            <div className="relative mx-auto h-40 w-40">
+              <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+                <circle cx="50" cy="50" r="42" stroke="oklch(0.92 0.02 230)" strokeWidth="10" fill="none" />
+                <circle
+                  cx="50" cy="50" r="42"
+                  stroke="url(#floodGrad)" strokeWidth="10" fill="none"
+                  strokeDasharray={`${weather.flood_risk * 2.64} 264`} strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="floodGrad">
+                    <stop offset="0%" stopColor="oklch(0.7 0.2 35)" />
+                    <stop offset="100%" stopColor="oklch(0.6 0.24 15)" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="font-display text-4xl font-bold text-destructive">{weather.flood_risk}%</div>
+                <div className="text-xs text-muted-foreground">
+                  {weather.flood_risk > 60 ? "HIGH" : weather.flood_risk > 30 ? "MEDIUM" : "LOW"}
+                </div>
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground">
+              {weather.flood_risk > 60 
+                ? "Subway routes and major low-lying junctions likely to waterlog soon."
+                : "Drainage networks running at normal capacities. Low current risk."}
+            </p>
+          </div>
+        </div>
+
+        {/* AI Recommendations */}
+        <div className="glass rounded-3xl p-6 lg:col-span-2">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="gradient-hero flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-glow">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="font-semibold">AI Recommendations</h3>
+              <p className="text-xs text-muted-foreground">Personalized for your household</p>
+            </div>
+          </div>
+          <ul className="space-y-3">
+            {[
+              weather.rainfall > 30 
+                ? "Delay non-essential travel immediately. Waterlogging reported on main arteries."
+                : "Weather is moderate, check local community hazard reports before traveling.",
+              "Verify your emergency kit list. Complete remaining checklist items.",
+              "Charge primary power banks now. Grid fluctuations expected during thunderstorms.",
+              "Stay connected to the family dashboard and monitor safe routes."
+            ].map((rec) => (
+              <li key={rec} className="flex gap-3 rounded-2xl bg-white/50 p-3 text-sm">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>{rec}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Safety score */}
+        <div className="gradient-safety rounded-3xl p-6 text-white shadow-elegant">
+          <div className="text-xs font-semibold uppercase tracking-widest opacity-80">Daily Safety Score</div>
+          <div className="mt-2 font-display text-6xl font-bold">{weather.safety_score}</div>
+          <div className="mt-1 text-sm opacity-90">
+            {weather.safety_score > 80 
+              ? "Great preparedness! You've protected your family & home." 
+              : "Review your checklist to improve your safety score."}
+          </div>
+          <Progress value={weather.safety_score} className="mt-4 bg-white/25" />
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="rounded-xl bg-white/15 p-2"><div className="font-bold">{kitDone}/{kitTotal || 4}</div><div className="opacity-80">Kit</div></div>
+            <div className="rounded-xl bg-white/15 p-2"><div className="font-bold">{familyDone}/{familyTotal || 2}</div><div className="opacity-80">Family</div></div>
+            <div className="rounded-xl bg-white/15 p-2"><div className="font-bold">{homeDone}/{homeTotal || 2}</div><div className="opacity-80">Home</div></div>
+          </div>
+        </div>
+
+        {/* Week forecast */}
+        <div className="glass rounded-3xl p-6 lg:col-span-3">
+          <h3 className="mb-4 font-semibold">7-day monsoon outlook</h3>
+          <div className="grid grid-cols-3 gap-3 md:grid-cols-7">
+            {weeklyForecast.map((d) => (
+              <div key={d.day} className="rounded-2xl bg-white/50 p-4 text-center">
+                <div className="text-xs font-semibold text-muted-foreground">{d.day}</div>
+                <CloudRain className="mx-auto my-2 h-6 w-6 text-primary" />
+                <div className="text-sm font-bold">{d.high}° <span className="text-muted-foreground">{d.low}°</span></div>
+                <div className="mt-1 text-[10px] text-primary">{d.rain}% rain</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Family + Shelters */}
+        <div className="glass rounded-3xl p-6 lg:col-span-2">
+          <div className="mb-4 flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Family Status</h3>
+          </div>
+          <ul className="space-y-3">
+            {family.map((m) => (
+              <li key={m.id} className="flex items-center justify-between rounded-2xl bg-white/50 p-3">
+                <div>
+                  <div className="text-sm font-semibold">{m.name}</div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{m.location}</div>
+                </div>
+                <Badge variant={m.status === "safe" ? "default" : "secondary"}
+                  className={m.status === "safe" ? "bg-accent text-accent-foreground" : "bg-warning text-warning-foreground"}>
+                  {m.status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="glass rounded-3xl p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Home className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Nearby Shelters</h3>
+          </div>
+          <ul className="space-y-3">
+            {shelters.slice(0, 3).map((s) => (
+              <li key={s.id} className="rounded-2xl bg-white/50 p-3">
+                <div className="text-sm font-semibold">{s.name}</div>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><Navigation className="h-3 w-3" />{s.distance}</span>
+                  <span>{s.occupancy}/{s.capacity}</span>
+                </div>
+                <Progress value={(s.occupancy / s.capacity) * 100} className="mt-2 h-1.5" />
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Alerts strip */}
+        <div className="glass rounded-3xl p-6 lg:col-span-3">
+          <h3 className="mb-4 font-semibold">Active alerts</h3>
+          <div className="grid gap-3 md:grid-cols-3">
+            {alerts.map((a) => {
+              const c = a.level === "high" ? "border-destructive/40 bg-destructive/5" :
+                        a.level === "medium" ? "border-warning/40 bg-warning/5" :
+                        "border-accent/40 bg-accent/5";
+              return (
+                <div key={a.id} className={`rounded-2xl border p-4 ${c}`}>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="uppercase text-[10px]">{a.level}</Badge>
+                    <span className="text-xs text-muted-foreground">{a.time}</span>
+                  </div>
+                  <div className="mt-2 text-sm font-semibold">{a.title}</div>
+                  <div className="text-xs text-muted-foreground">{a.area}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
