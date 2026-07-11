@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Map, MessageSquare, Users, ShieldAlert, Package,
+  LayoutDashboard, MessageSquare, Users, ShieldAlert, Package,
   Bell, Trophy, HeartHandshake, CloudRain, Menu, ChevronLeft,
 } from "lucide-react";
 import { useState } from "react";
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/map", label: "Live Map", icon: Map },
   { to: "/assistant", label: "AI Assistant", icon: MessageSquare },
   { to: "/checklist", label: "Preparedness", icon: Package },
   { to: "/alerts", label: "Alerts", icon: Bell },

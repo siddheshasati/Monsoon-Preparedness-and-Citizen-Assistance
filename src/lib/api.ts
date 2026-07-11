@@ -54,6 +54,10 @@ export interface UserResponse {
   email: string;
   name: string;
   role: string;
+  phone: string | null;
+  location_name: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface AuthResponse {
@@ -121,13 +125,32 @@ export interface Shelter {
   distance: string;
 }
 
+export interface AlertData {
+  id: number;
+  title: string;
+  level: string;
+  area: string;
+  time: string;
+  latitude: number | null;
+  longitude: number | null;
+  body?: string;
+}
+
 export const api = {
   // Auth
   auth: {
-    register: (name: string, email: string, role: string) =>
+    register: (
+      name: string,
+      email: string,
+      role: string,
+      location_name: string,
+      latitude: number,
+      longitude: number,
+      phone?: string
+    ) =>
       request<{ message: string; email: string }>("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ name, email, role }),
+        body: JSON.stringify({ name, email, role, location_name, latitude, longitude, phone }),
       }),
     login: (email: string) =>
       request<{ message: string; email: string }>("/api/auth/login", {
@@ -196,7 +219,17 @@ export const api = {
   // Family & SOS
   family: {
     get: () => request<FamilyMember[]>("/api/family"),
+    create: (name: string, location: string, phone?: string, status = "safe") =>
+      request<FamilyMember>("/api/family", {
+        method: "POST",
+        body: JSON.stringify({ name, location, phone, status }),
+      }),
     getShelters: () => request<Shelter[]>("/api/family/shelters"),
+    createShelter: (name: string, latitude: number, longitude: number, capacity: number, occupancy = 0) =>
+      request<Shelter>("/api/family/shelters", {
+        method: "POST",
+        body: JSON.stringify({ name, latitude, longitude, capacity, occupancy }),
+      }),
     sendSos: (latitude: number, longitude: number, locationName?: string) =>
       request<{
         status: string;
@@ -205,6 +238,23 @@ export const api = {
         sms_sent: number;
       }>(`/api/family/sos?latitude=${latitude}&longitude=${longitude}${locationName ? `&location_name=${encodeURIComponent(locationName)}` : ""}`, {
         method: "POST",
+      }),
+  },
+
+  // Emergency Alerts
+  alerts: {
+    get: () => request<AlertData[]>("/api/alerts"),
+    create: (payload: {
+      title: string;
+      level: string;
+      area: string;
+      time: string;
+      latitude?: number;
+      longitude?: number;
+    }) =>
+      request<AlertData>("/api/alerts", {
+        method: "POST",
+        body: JSON.stringify(payload),
       }),
   },
 };

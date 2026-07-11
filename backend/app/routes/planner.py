@@ -15,37 +15,11 @@ class GeneratePlannerSchema(BaseModel):
     has_children: bool
     has_pets: bool
 
-DEFAULT_CHECKLIST = [
-    {"item": "Assemble standard 3-day emergency kit (first-aid, dry food, 3L water/person)", "category": "Kit"},
-    {"item": "Charge all power banks, flashlights, and emergency lights", "category": "Kit"},
-    {"item": "Secure waterproof pouch for legal documents, passports, and IDs", "category": "Kit"},
-    {"item": "Store 3-day supply of personal prescription medications", "category": "Kit"},
-    {"item": "Create a family communication plan with emergency contact numbers", "category": "Family"},
-    {"item": "Ensure children know emergency contact details and safe meeting points", "category": "Family"},
-    {"item": "Inspect house drainage, clear blockages, and check roof for leaks", "category": "Home"},
-    {"item": "Identify elevated storage locations for ground-level electronics", "category": "Home"},
-]
-
-def populate_default_checklist(user_id: int, db: Session):
-    # Check if user already has items
-    existing = db.query(Checklist).filter(Checklist.user_id == user_id).first()
-    if not existing:
-        for item in DEFAULT_CHECKLIST:
-            db_item = Checklist(
-                user_id=user_id,
-                item=item["item"],
-                category=item["category"],
-                done=False
-            )
-            db.add(db_item)
-        db.commit()
-
 @router.get("")
 async def get_checklist(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    populate_default_checklist(current_user.id, db)
     items = db.query(Checklist).filter(Checklist.user_id == current_user.id).all()
     return [
         {

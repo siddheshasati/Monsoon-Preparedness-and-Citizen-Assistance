@@ -40,11 +40,38 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState("citizen");
+  const [phone, setPhone] = useState("");
+  const [locationName, setLocationName] = useState("");
+  const [latitude, setLatitude] = useState<number | "">("");
+  const [longitude, setLongitude] = useState<number | "">("");
+  const [locating, setLocating] = useState(false);
   
   // OTP flow state
   const [step, setStep] = useState<"details" | "otp">("details");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser.");
+      return;
+    }
+    setLocating(true);
+    toast.info("Fetching GPS coordinates...");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude);
+        setLongitude(position.coords.longitude);
+        setLocating(false);
+        toast.success("GPS location detected successfully!");
+      },
+      (error) => {
+        setLocating(false);
+        toast.error("Could not detect GPS coordinates. Please enter manually.");
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +91,25 @@ function AuthPage() {
           setLoading(false);
           return;
         }
-        await api.auth.register(name, email, role);
+        if (!locationName) {
+          toast.error("Please enter your location or address.");
+          setLoading(false);
+          return;
+        }
+        if (latitude === "" || longitude === "") {
+          toast.error("Please specify your coordinates (Latitude/Longitude).");
+          setLoading(false);
+          return;
+        }
+        await api.auth.register(
+          name,
+          email,
+          role,
+          locationName,
+          Number(latitude),
+          Number(longitude),
+          phone || undefined
+        );
         toast.success("Account created! Verification code sent to email.");
       }
       setStep("otp");
@@ -167,6 +212,72 @@ function AuthPage() {
                         />
                       </div>
                     </div>
+
+                    {activeTab === "register" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone Number</Label>
+                          <Input
+                            id="phone"
+                            placeholder="+919876543210"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            className="glass border-white/60 h-11"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="locationName" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Address / City</Label>
+                            <button
+                              type="button"
+                              onClick={detectLocation}
+                              disabled={locating}
+                              className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1"
+                            >
+                              📍 {locating ? "Locating..." : "Detect GPS"}
+                            </button>
+                          </div>
+                          <Input
+                            id="locationName"
+                            placeholder="e.g. Bandra West, Mumbai"
+                            value={locationName}
+                            onChange={(e) => setLocationName(e.target.value)}
+                            className="glass border-white/60 h-11"
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="latitude" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Latitude</Label>
+                            <Input
+                              id="latitude"
+                              type="number"
+                              step="0.000001"
+                              placeholder="19.0544"
+                              value={latitude}
+                              onChange={(e) => setLatitude(e.target.value === "" ? "" : Number(e.target.value))}
+                              className="glass border-white/60 h-11"
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="longitude" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Longitude</Label>
+                            <Input
+                              id="longitude"
+                              type="number"
+                              step="0.000001"
+                              placeholder="72.8402"
+                              value={longitude}
+                              onChange={(e) => setLongitude(e.target.value === "" ? "" : Number(e.target.value))}
+                              className="glass border-white/60 h-11"
+                              required
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     {activeTab === "register" && (
                       <div className="space-y-2">

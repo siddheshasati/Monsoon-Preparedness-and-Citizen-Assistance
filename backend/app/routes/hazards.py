@@ -1,77 +1,43 @@
+import math
+import os
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from backend.app.database import get_db, HazardReport, User
 from backend.app.auth import get_current_user
 from backend.app.config import settings
-from datetime import datetime
-import os
 
 router = APIRouter(prefix="/hazards", tags=["Community Hazards"])
 
-DEFAULT_HAZARDS = [
-    {
-        "type": "Waterlogging",
-        "severity": "high",
-        "description": "Andheri subway has accumulated 3 feet of water. Avoid this route entirely.",
-        "location_name": "Andheri Subway, Mumbai",
-        "latitude": 19.1197,
-        "longitude": 72.8464,
-        "reports": 42,
-        "status": "active"
-    },
-    {
-        "type": "Fallen trees",
-        "severity": "medium",
-        "description": "Large tree has fallen blocking 2 lanes of S.V. Road near Bandra.",
-        "location_name": "S.V. Road, Bandra West",
-        "latitude": 19.0544,
-        "longitude": 72.8402,
-        "reports": 18,
-        "status": "active"
-    },
-    {
-        "type": "Electric hazards",
-        "severity": "high",
-        "description": "Sparking overhead cable hanging near Hindmata Cinema.",
-        "location_name": "Hindmata Junction, Dadar",
-        "latitude": 19.0189,
-        "longitude": 72.8436,
-        "reports": 35,
-        "status": "active"
-    },
-    {
-        "type": "Blocked roads",
-        "severity": "medium",
-        "description": "Drainage cleanup has left mud piles blocking local road access.",
-        "location_name": "Sion Circle, Sion",
-        "latitude": 19.0390,
-        "longitude": 72.8619,
-        "reports": 9,
-        "status": "active"
-    }
-]
-
-def populate_default_hazards(db: Session):
-    existing = db.query(HazardReport).first()
-    if not existing:
-        for haz in DEFAULT_HAZARDS:
-            db_haz = HazardReport(
-                type=haz["type"],
-                severity=haz["severity"],
-                description=haz["description"],
-                location_name=haz["location_name"],
-                latitude=haz["latitude"],
-                longitude=haz["longitude"],
-                reports=haz["reports"],
-                status=haz["status"]
-            )
-            db.add(db_haz)
-        db.commit()
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    # Radius of the earth in km
+    R = 6371.0
+    
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    
+    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    distance = R * c
+    return distance
 
 @router.get("")
-async def get_hazards(db: Session = Depends(get_db)):
-    populate_default_hazards(db)
+async def get_hazards(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     reports = db.query(HazardReport).all()
+    
+    # Filter by user proximity if logged in
+    if current_user and current_user.latitude is not None and current_user.longitude is not None:
+        filtered = []
+        for r in reports:
+            dist = haversine_distance(current_user.latitude, current_user.longitude, r.latitude, r.longitude)
+            if dist <= 20.0:  # 20 km radius
+                filtered.append(r)
+        reports = filtered
+        
     return [
         {
             "id": r.id,
@@ -102,26 +68,12 @@ async def report_hazard(
 ):
     image_url = None
     
-    # In a full production app, you would upload to Cloudinary or local storage.
-    # Here we mock store the image or just simulate it.
     if image:
-        # Create uploads folder
         os.makedirs("uploads", exist_ok=True)
         file_path = f"uploads/{datetime.utcnow().timestamp()}_{image.filename}"
         with open(file_path, "wb") as buffer:
             buffer.write(await image.read())
         image_url = f"/uploads/{os.path.basename(file_path)}"
-        
-        # If Gemini API Key is available, verify the image
-        if settings.GEMINI_API_KEY:
-            try:
-                # We can call Gemini API to parse the hazard severity
-                # from google import genai
-                # client = genai.Client(api_key=settings.GEMINI_API_KEY)
-                # response = client.models.generate_content(...)
-                pass
-            except Exception:
-                pass
 
     # Save to Database
     db_report = HazardReport(

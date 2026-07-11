@@ -53,7 +53,7 @@ async def send_otp_email(email: str, otp: str) -> bool:
     try:
         # Create message container
         msg = MIMEMultipart()
-        msg["From"] = settings.SMTP_FROM
+        msg["From"] = f"Monsoon Copilot <{settings.SMTP_FROM}>"
         msg["To"] = email
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "html"))
@@ -64,7 +64,7 @@ async def send_otp_email(email: str, otp: str) -> bool:
         server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
         server.sendmail(settings.SMTP_FROM, email, msg.as_string())
         server.quit()
-        logger.info(f"OTP successfully emailed to {email}")
+        logger.info(f"OTP successfully emailed to {email} (Terminal backup verification code: {otp})")
         return True
     except Exception as e:
         logger.error(f"Failed to send email to {email}: {e}")

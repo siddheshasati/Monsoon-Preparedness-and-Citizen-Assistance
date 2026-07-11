@@ -74,9 +74,8 @@ function Dashboard() {
       }
 
       try {
-        const al = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/alerts`)
-          .then((r) => r.json());
-        setAlerts(al);
+        const al = await api.alerts.get();
+        setAlerts(Array.isArray(al) ? al : []);
       } catch (err) {
         console.error("Failed to load active alerts");
       }

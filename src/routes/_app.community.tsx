@@ -45,6 +45,8 @@ function Community() {
   const [longitude, setLongitude] = useState(72.846);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
+  const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number, location_name?: string } | undefined>(undefined);
+
   const fetchReports = async () => {
     try {
       const data = await api.hazards.get();
@@ -58,6 +60,24 @@ function Community() {
 
   useEffect(() => {
     fetchReports();
+
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        if (u.latitude && u.longitude) {
+          setUserLocation({
+            latitude: u.latitude,
+            longitude: u.longitude,
+            location_name: u.location_name
+          });
+          setLatitude(u.latitude);
+          setLongitude(u.longitude);
+        }
+      } catch (e) {
+        console.error("Failed to parse user from storage", e);
+      }
+    }
   }, []);
 
   const handleConfirm = async (id: number) => {
@@ -144,6 +164,31 @@ function Community() {
         >
           <Plus className="mr-2 h-4 w-4" /> Report hazard
         </Button>
+      </div>
+
+      {/* Community Status Banner */}
+      <div className="glass rounded-3xl p-6 md:p-8 bg-gradient-to-r from-primary/10 via-accent/5 to-primary/5 border border-white/60 shadow-elegant">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <h3 className="font-display text-lg font-bold text-slate-800 flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              Community Status: Active Monitoring
+            </h3>
+            <p className="text-sm text-slate-600 max-w-2xl">
+              Monsoon Copilot is actively tracking safety reports in your area. Use the <b>Report Hazard</b> button to log waterlogging, fallen trees, or electric cables. Help verify your neighbors' reports to build a safer routing database.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-4 animate-fade-in">
+            <div className="bg-white/80 backdrop-blur px-4 py-2.5 rounded-2xl border border-slate-100 shadow-sm text-center min-w-[100px]">
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Reports Today</div>
+              <div className="text-xl font-bold gradient-text">{reportsToday}</div>
+            </div>
+            <div className="bg-white/80 backdrop-blur px-4 py-2.5 rounded-2xl border border-slate-100 shadow-sm text-center min-w-[100px]">
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Volunteers</div>
+              <div className="text-xl font-bold text-emerald-600 font-sans">Active</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

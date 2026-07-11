@@ -1,9 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { MapPin, MessageCircle, Phone, Plus } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Plus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { api, FamilyMember } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -16,19 +31,52 @@ function Family() {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadFamily() {
-      try {
-        const data = await api.family.get();
-        setMembers(data);
-      } catch (err) {
-        toast.error("Failed to load family members.");
-      } finally {
-        setLoading(false);
-      }
+  // Dialog State
+  const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
+  const [phone, setPhone] = useState("");
+  const [status, setStatus] = useState("safe");
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadFamily = async () => {
+    try {
+      const data = await api.family.get();
+      setMembers(data);
+    } catch (err) {
+      toast.error("Failed to load family members.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadFamily();
   }, []);
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !location) {
+      toast.error("Please enter a name and location.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.family.create(name, location, phone || undefined, status);
+      toast.success("Family member profile created!");
+      setName("");
+      setLocation("");
+      setPhone("");
+      setStatus("safe");
+      setIsOpen(false);
+      loadFamily();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create family member.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -46,7 +94,7 @@ function Family() {
           <h1 className="mt-1 font-display text-4xl font-bold">Everyone's location, one glance</h1>
         </div>
         <Button 
-          onClick={() => toast.info("Add Member feature is a placeholder. Add details directly into database family_members.")}
+          onClick={() => setIsOpen(true)}
           className="gradient-hero border-0 text-white shadow-elegant"
         >
           <Plus className="mr-2 h-4 w-4" /> Add member
@@ -96,6 +144,77 @@ function Family() {
           </motion.div>
         ))}
       </div>
+
+      {/* Add Family Member Modal */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="glass border border-white/60 bg-white/80 max-w-md rounded-3xl p-6 backdrop-blur-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              Add Family Member
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleAddMember} className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <Label htmlFor="memberName" className="text-xs font-semibold text-muted-foreground">Name</Label>
+              <Input
+                id="memberName"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Arjun (Brother)"
+                className="glass border-white/60 h-10"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="memberLoc" className="text-xs font-semibold text-muted-foreground">Last Known Location</Label>
+              <Input
+                id="memberLoc"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Andheri West, Mumbai"
+                className="glass border-white/60 h-10"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="memberPhone" className="text-xs font-semibold text-muted-foreground">Phone Number</Label>
+              <Input
+                id="memberPhone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. +919876543210"
+                className="glass border-white/60 h-10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-muted-foreground">Current Safety Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="glass border-white/60 h-10">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="safe">Safe</SelectItem>
+                  <SelectItem value="unsafe">Unsafe / Needs Assistance</SelectItem>
+                  <SelectItem value="traveling">Traveling / Evacuating</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full gradient-hero border-0 text-white shadow-elegant h-11 rounded-xl font-medium mt-4"
+            >
+              {submitting ? "Adding Profile..." : "Add Family Profile"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

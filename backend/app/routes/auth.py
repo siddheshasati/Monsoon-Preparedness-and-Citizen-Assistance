@@ -13,6 +13,10 @@ class RegisterSchema(BaseModel):
     email: EmailStr
     name: str
     role: str = "citizen"  # citizen, volunteer, ngo, admin
+    location_name: str
+    latitude: float
+    longitude: float
+    phone: str | None = None
 
 class LoginSchema(BaseModel):
     email: EmailStr
@@ -55,7 +59,15 @@ async def register(payload: RegisterSchema, db: Session = Depends(get_db)):
         )
     
     # Create the user
-    new_user = User(email=payload.email, name=payload.name, role=payload.role.lower())
+    new_user = User(
+        email=payload.email,
+        name=payload.name,
+        role=payload.role.lower(),
+        phone=payload.phone,
+        location_name=payload.location_name,
+        latitude=payload.latitude,
+        longitude=payload.longitude
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -127,7 +139,11 @@ async def verify_otp(payload: VerifyOTPSchema, db: Session = Depends(get_db)):
             "id": user.id,
             "email": user.email,
             "name": user.name,
-            "role": user.role
+            "role": user.role,
+            "phone": user.phone,
+            "location_name": user.location_name,
+            "latitude": user.latitude,
+            "longitude": user.longitude
         }
     }
 
@@ -138,5 +154,9 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "name": current_user.name,
         "role": current_user.role,
+        "phone": current_user.phone,
+        "location_name": current_user.location_name,
+        "latitude": current_user.latitude,
+        "longitude": current_user.longitude,
         "created_at": current_user.created_at
     }
