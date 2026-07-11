@@ -5,7 +5,7 @@ An intelligent, real-time crisis management and preparedness platform designed t
 ## 🔗 Live Deployments
 
 *   **Frontend Web App (Vercel):** [https://monsoon-preparedness-and-citizen-assistant-fov95vb5m.vercel.app/](https://monsoon-preparedness-and-citizen-assistant-fov95vb5m.vercel.app/)
-*   **FastAPI Backend (Vercel Serverless):** [https://monsoon-preparedness-and-citizen-assistance-jsgogdqfn.vercel.app/](https://monsoon-preparedness-and-citizen-assistance-jsgogdqfn.vercel.app/docs)
+
 
 ---
 
