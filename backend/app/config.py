@@ -41,4 +41,19 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = True
 
+def _get_uploads_dir() -> str:
+    try:
+        os.makedirs("uploads", exist_ok=True)
+        # Test write access
+        test_file = "uploads/.write_test"
+        with open(test_file, "w") as f:
+            f.write("")
+        os.remove(test_file)
+        return "uploads"
+    except OSError:
+        os.makedirs("/tmp/uploads", exist_ok=True)
+        return "/tmp/uploads"
+
 settings = Settings()
+# Add dynamically resolved UPLOADS_DIR to settings object
+settings.__dict__["UPLOADS_DIR"] = _get_uploads_dir()

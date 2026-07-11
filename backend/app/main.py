@@ -7,7 +7,7 @@ from backend.app.database import engine, Base
 from backend.app.routes import auth, weather, planner, hazards, chat, family, alerts
 
 # Ensure uploads directory exists
-os.makedirs("uploads", exist_ok=True)
+os.makedirs(settings.UPLOADS_DIR, exist_ok=True)
 
 # Auto-migrate/create SQLite/PostgreSQL schemas on startup
 Base.metadata.create_all(bind=engine)
@@ -28,7 +28,7 @@ app.add_middleware(
 )
 
 # Statically serve hazard images
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory=settings.UPLOADS_DIR), name="uploads")
 
 # Mount API Routers under /api
 app.include_router(auth.router, prefix="/api")

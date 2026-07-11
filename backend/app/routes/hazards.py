@@ -69,8 +69,8 @@ async def report_hazard(
     image_url = None
     
     if image:
-        os.makedirs("uploads", exist_ok=True)
-        file_path = f"uploads/{datetime.utcnow().timestamp()}_{image.filename}"
+        os.makedirs(settings.UPLOADS_DIR, exist_ok=True)
+        file_path = os.path.join(settings.UPLOADS_DIR, f"{datetime.utcnow().timestamp()}_{image.filename}")
         with open(file_path, "wb") as buffer:
             buffer.write(await image.read())
         image_url = f"/uploads/{os.path.basename(file_path)}"
