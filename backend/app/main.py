@@ -22,7 +22,16 @@ try:
             conn.execute(text("ALTER TABLE otp_records ADD COLUMN registration_data TEXT"))
         print("Successfully added registration_data column to otp_records table.")
 except Exception as e:
-    print(f"Migration check error: {e}")
+    print(f"Migration check error for otp_records: {e}")
+
+try:
+    columns = [col['name'] for col in inspector.get_columns('users')]
+    if 'password_hash' not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN password_hash TEXT"))
+        print("Successfully added password_hash column to users table.")
+except Exception as e:
+    print(f"Migration check error for users: {e}")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

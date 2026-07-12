@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CloudRain, Mail, User, Shield, ArrowRight, ArrowLeft } from "lucide-react";
+import { CloudRain, Mail, User, Shield, ArrowRight, ArrowLeft, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,7 @@ function AuthPage() {
   const [locationName, setLocationName] = useState("");
   const [latitude, setLatitude] = useState<number | "">("");
   const [longitude, setLongitude] = useState<number | "">("");
+  const [password, setPassword] = useState("");
   const [locating, setLocating] = useState(false);
   
   // OTP flow state
@@ -148,8 +149,17 @@ function AuthPage() {
     setLoading(true);
     try {
       if (activeTab === "login") {
-        await api.auth.login(email);
-        toast.success("Verification code sent to your email.");
+        if (!password) {
+          toast.error("Please enter your password.");
+          setLoading(false);
+          return;
+        }
+        const res = await api.auth.login(email, password);
+        sessionStorage.setItem("token", res.access_token);
+        sessionStorage.setItem("user", JSON.stringify(res.user));
+        toast.success(`Welcome back, ${res.user.name}!`);
+        navigate({ to: redirectPath });
+        return;
       } else {
         if (!name) {
           toast.error("Please enter your name.");
@@ -161,11 +171,17 @@ function AuthPage() {
           setLoading(false);
           return;
         }
+        if (!password || password.length < 6) {
+          toast.error("Password must be at least 6 characters long.");
+          setLoading(false);
+          return;
+        }
         await api.auth.register(
           name,
           email,
           role,
           locationName,
+          password,
           latitude !== "" ? Number(latitude) : undefined,
           longitude !== "" ? Number(longitude) : undefined,
           phone || undefined
@@ -291,6 +307,25 @@ function AuthPage() {
                       </div>
                     </div>
 
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        {activeTab === "register" ? "Create Password (min. 6 characters)" : "Password"}
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder=""
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 glass border-white/60 h-11"
+                          minLength={activeTab === "register" ? 6 : undefined}
+                          required
+                        />
+                      </div>
+                    </div>
+
                     {activeTab === "register" && (
                       <>
                         <div className="space-y-2">
@@ -361,7 +396,9 @@ function AuthPage() {
                       disabled={loading}
                       className="w-full gradient-hero border-0 text-white shadow-elegant h-11 rounded-xl font-medium mt-6"
                     >
-                      {loading ? "Sending..." : "Send Verification OTP"}
+                      {loading
+                        ? (activeTab === "login" ? "Signing In..." : "Sending...")
+                        : (activeTab === "login" ? "Sign In" : "Send Verification OTP")}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </form>

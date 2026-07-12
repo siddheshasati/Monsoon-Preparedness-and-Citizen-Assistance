@@ -1,10 +1,10 @@
 import random
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 from backend.app.database import get_db, User, OTPRecord
-from backend.app.auth import create_access_token, get_current_user
+from backend.app.auth import create_access_token, get_current_user, get_password_hash, verify_password
 from backend.app.utils.smtp import send_otp_email
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -12,6 +12,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 class RegisterSchema(BaseModel):
     email: EmailStr
     name: str
+    password: str = Field(..., min_length=6, description="Password must be at least 6 characters long")
     role: str = "citizen"  # citizen, volunteer, ngo, admin
     location_name: str
     latitude: float | None = None
@@ -29,6 +30,7 @@ class UserUpdateSchema(BaseModel):
 
 class LoginSchema(BaseModel):
     email: EmailStr
+    password: str
 
 class VerifyOTPSchema(BaseModel):
     email: EmailStr
@@ -83,6 +85,9 @@ async def register(payload: RegisterSchema, db: Session = Depends(get_db)):
             latitude = lat
             longitude = lon
 
+    # Hash the password to store it in registration data
+    pwd_hash = get_password_hash(payload.password)
+
     # Serialize registration details as JSON string
     reg_data = json.dumps({
         "name": payload.name,
@@ -90,7 +95,8 @@ async def register(payload: RegisterSchema, db: Session = Depends(get_db)):
         "phone": payload.phone,
         "location_name": payload.location_name,
         "latitude": latitude,
-        "longitude": longitude
+        "longitude": longitude,
+        "password_hash": pwd_hash
     })
     
     # Generate and send OTP, saving registration details
@@ -110,20 +116,34 @@ async def login(payload: LoginSchema, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No account found with this email. Please register first."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password."
         )
     
-    # Generate and send OTP
-    otp = generate_and_save_otp(payload.email, db)
-    email_sent = await send_otp_email(payload.email, otp)
-    if not email_sent:
+    # Verify the password
+    if not verify_password(payload.password, user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send verification OTP email. Please try again."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password."
         )
     
-    return {"message": "Verification OTP sent to email.", "email": payload.email}
+    # Generate Access Token directly (no OTP needed for sign in anymore)
+    access_token = create_access_token(data={"sub": user.email, "role": user.role})
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "phone": user.phone,
+            "location_name": user.location_name,
+            "latitude": user.latitude,
+            "longitude": user.longitude
+        }
+    }
 
 @router.post("/resend-otp")
 async def resend_otp(payload: ResendOTPSchema, db: Session = Depends(get_db)):
@@ -192,7 +212,8 @@ async def verify_otp(payload: VerifyOTPSchema, db: Session = Depends(get_db)):
                     phone=data.get("phone"),
                     location_name=data.get("location_name"),
                     latitude=data.get("latitude"),
-                    longitude=data.get("longitude")
+                    longitude=data.get("longitude"),
+                    password_hash=data.get("password_hash")
                 )
                 db.add(user)
                 db.commit()

@@ -153,18 +153,19 @@ export const api = {
       email: string,
       role: string,
       location_name: string,
+      password?: string,
       latitude?: number,
       longitude?: number,
       phone?: string
     ) =>
       request<{ message: string; email: string }>("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ name, email, role, location_name, latitude, longitude, phone }),
+        body: JSON.stringify({ name, email, role, location_name, password, latitude, longitude, phone }),
       }),
-    login: (email: string) =>
-      request<{ message: string; email: string }>("/api/auth/login", {
+    login: (email: string, password?: string) =>
+      request<AuthResponse>("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       }),
     verifyOtp: (email: string, otp: string) =>
       request<AuthResponse>("/api/auth/verify-otp", {
