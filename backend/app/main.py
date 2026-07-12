@@ -12,6 +12,18 @@ os.makedirs(settings.UPLOADS_DIR, exist_ok=True)
 # Auto-migrate/create SQLite/PostgreSQL schemas on startup
 Base.metadata.create_all(bind=engine)
 
+# Migration helper: Check if registration_data column exists in otp_records and add if missing
+from sqlalchemy import inspect, text
+inspector = inspect(engine)
+try:
+    columns = [col['name'] for col in inspector.get_columns('otp_records')]
+    if 'registration_data' not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE otp_records ADD COLUMN registration_data TEXT"))
+        print("Successfully added registration_data column to otp_records table.")
+except Exception as e:
+    print(f"Migration check error: {e}")
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Backend API services for the AI Monsoon Copilot platform",

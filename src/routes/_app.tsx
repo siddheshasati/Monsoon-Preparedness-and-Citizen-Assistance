@@ -4,7 +4,7 @@ import { DashboardShell } from "@/components/dashboard-shell";
 export const Route = createFileRoute("/_app")({
   beforeLoad: ({ location }) => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       if (!token) {
         throw redirect({
           to: "/auth",

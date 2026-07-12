@@ -61,7 +61,7 @@ function Community() {
   useEffect(() => {
     fetchReports();
 
-    const userStr = localStorage.getItem("user");
+    const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
     if (userStr) {
       try {
         const u = JSON.parse(userStr);

@@ -1,4 +1,4 @@
-import smtplib
+import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 async def send_otp_email(email: str, otp: str) -> bool:
     """
-    Sends a 6-digit OTP verification code to the user's email.
+    Sends a 6-digit OTP verification code to the user's email asynchronously.
     If no SMTP password is set in the environment, it prints the OTP to console.
     """
     subject = f"Your Monsoon Copilot Verification Code: {otp}"
@@ -58,12 +58,17 @@ async def send_otp_email(email: str, otp: str) -> bool:
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "html"))
 
-        # Setup SMTP Connection
-        server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
-        server.starttls()
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.sendmail(settings.SMTP_FROM, email, msg.as_string())
-        server.quit()
+        # Setup SMTP Connection and send asynchronously using aiosmtplib
+        await aiosmtplib.send(
+            msg,
+            hostname=settings.SMTP_HOST,
+            port=settings.SMTP_PORT,
+            username=settings.SMTP_USER,
+            password=settings.SMTP_PASSWORD,
+            use_tls=False,
+            start_tls=True,
+            timeout=10.0
+        )
         logger.info(f"OTP successfully emailed to {email} (Terminal backup verification code: {otp})")
         return True
     except Exception as e:

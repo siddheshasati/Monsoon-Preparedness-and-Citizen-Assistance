@@ -29,7 +29,7 @@ function Checklist() {
 
   // Form states for AI regeneration
   const [location, setLocation] = useState(() => {
-    const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
     const user = userStr ? JSON.parse(userStr) : null;
     return user?.location_name || "";
   });

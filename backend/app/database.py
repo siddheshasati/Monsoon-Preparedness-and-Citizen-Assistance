@@ -125,3 +125,4 @@ class OTPRecord(Base):
     otp = Column(String, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    registration_data = Column(String, nullable=True)

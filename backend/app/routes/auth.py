@@ -34,8 +34,14 @@ class VerifyOTPSchema(BaseModel):
     email: EmailStr
     otp: str
 
+class ResendOTPSchema(BaseModel):
+    email: EmailStr
+    action: str  # "register" or "login"
+
+import json
+
 # Helper to generate and save OTP
-def generate_and_save_otp(email: str, db: Session) -> str:
+def generate_and_save_otp(email: str, db: Session, registration_data: str | None = None) -> str:
     # 6-digit OTP
     otp = f"{random.randint(100000, 999999)}"
     expires_at = datetime.utcnow() + timedelta(minutes=10)
@@ -44,7 +50,7 @@ def generate_and_save_otp(email: str, db: Session) -> str:
     db.query(OTPRecord).filter(OTPRecord.email == email).delete()
     
     # Store new OTP
-    db_otp = OTPRecord(email=email, otp=otp, expires_at=expires_at)
+    db_otp = OTPRecord(email=email, otp=otp, expires_at=expires_at, registration_data=registration_data)
     db.add(db_otp)
     db.commit()
     return otp
@@ -67,23 +73,34 @@ async def register(payload: RegisterSchema, db: Session = Depends(get_db)):
             detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}"
         )
     
-    # Create the user
-    new_user = User(
-        email=payload.email,
-        name=payload.name,
-        role=payload.role.lower(),
-        phone=payload.phone,
-        location_name=payload.location_name,
-        latitude=payload.latitude,
-        longitude=payload.longitude
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    # Auto-geocode location if coordinates are missing
+    latitude = payload.latitude
+    longitude = payload.longitude
+    if (latitude is None or longitude is None) and payload.location_name:
+        from backend.app.utils.geocoding import geocode_address
+        lat, lon = await geocode_address(payload.location_name)
+        if lat is not None and lon is not None:
+            latitude = lat
+            longitude = lon
+
+    # Serialize registration details as JSON string
+    reg_data = json.dumps({
+        "name": payload.name,
+        "role": payload.role.lower(),
+        "phone": payload.phone,
+        "location_name": payload.location_name,
+        "latitude": latitude,
+        "longitude": longitude
+    })
     
-    # Generate and send OTP
-    otp = generate_and_save_otp(payload.email, db)
-    await send_otp_email(payload.email, otp)
+    # Generate and send OTP, saving registration details
+    otp = generate_and_save_otp(payload.email, db, registration_data=reg_data)
+    email_sent = await send_otp_email(payload.email, otp)
+    if not email_sent:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification OTP email. Please check your email address and connection."
+        )
     
     return {"message": "Registration successful. Verification OTP sent to email.", "email": payload.email}
 
@@ -99,9 +116,44 @@ async def login(payload: LoginSchema, db: Session = Depends(get_db)):
     
     # Generate and send OTP
     otp = generate_and_save_otp(payload.email, db)
-    await send_otp_email(payload.email, otp)
+    email_sent = await send_otp_email(payload.email, otp)
+    if not email_sent:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification OTP email. Please try again."
+        )
     
     return {"message": "Verification OTP sent to email.", "email": payload.email}
+
+@router.post("/resend-otp")
+async def resend_otp(payload: ResendOTPSchema, db: Session = Depends(get_db)):
+    # Check if there is an existing OTP record
+    otp_record = db.query(OTPRecord).filter(OTPRecord.email == payload.email).first()
+    
+    # Check if user already exists
+    user = db.query(User).filter(User.email == payload.email).first()
+    if payload.action == "login":
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No account found with this email. Please register first."
+            )
+    elif payload.action == "register":
+        # Allow resending OTP even if user exists in the DB, resolving the registration resend bug.
+        pass
+            
+    # Generate and send a new OTP, preserving the registration_data if it exists
+    reg_data = otp_record.registration_data if otp_record else None
+    
+    otp = generate_and_save_otp(payload.email, db, registration_data=reg_data)
+    email_sent = await send_otp_email(payload.email, otp)
+    if not email_sent:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to resend verification OTP. Please try again."
+        )
+        
+    return {"message": "Verification OTP resent successfully.", "email": payload.email}
 
 @router.post("/verify-otp")
 async def verify_otp(payload: VerifyOTPSchema, db: Session = Depends(get_db)):
@@ -126,12 +178,36 @@ async def verify_otp(payload: VerifyOTPSchema, db: Session = Depends(get_db)):
             detail="Verification code has expired"
         )
     
-    # Find user
     user = db.query(User).filter(User.email == payload.email).first()
+    
+    # If registration_data is present, create the user
+    if otp_record.registration_data:
+        if not user:
+            try:
+                data = json.loads(otp_record.registration_data)
+                user = User(
+                    email=payload.email,
+                    name=data["name"],
+                    role=data["role"].lower(),
+                    phone=data.get("phone"),
+                    location_name=data.get("location_name"),
+                    latitude=data.get("latitude"),
+                    longitude=data.get("longitude")
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create user account: {str(e)}"
+                )
+    
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail="User account not found. Please register first."
         )
     
     # Generate Access Token
@@ -155,6 +231,17 @@ async def verify_otp(payload: VerifyOTPSchema, db: Session = Depends(get_db)):
             "longitude": user.longitude
         }
     }
+
+@router.get("/reverse-geocode")
+async def api_reverse_geocode(latitude: float, longitude: float):
+    from backend.app.utils.geocoding import reverse_geocode
+    city = await reverse_geocode(latitude, longitude)
+    if not city:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Could not resolve location name for these coordinates."
+        )
+    return {"location_name": city}
 
 @router.get("/me")
 async def read_users_me(current_user: User = Depends(get_current_user)):
@@ -182,6 +269,13 @@ async def update_users_me(
         current_user.phone = payload.phone
     if payload.location_name is not None:
         current_user.location_name = payload.location_name
+        # Auto-geocode if new location name is given but no coordinates are provided
+        if payload.latitude is None or payload.longitude is None:
+            from backend.app.utils.geocoding import geocode_address
+            lat, lon = await geocode_address(payload.location_name)
+            if lat is not None and lon is not None:
+                current_user.latitude = lat
+                current_user.longitude = lon
     if payload.latitude is not None:
         current_user.latitude = payload.latitude
     if payload.longitude is not None:

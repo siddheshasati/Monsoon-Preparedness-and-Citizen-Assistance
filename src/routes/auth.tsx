@@ -13,7 +13,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, API_BASE_URL } from "@/lib/api";
 import { CloudsBackdrop, RainBackdrop } from "@/components/weather-backdrop";
 
 export const Route = createFileRoute("/auth")({
@@ -51,25 +51,90 @@ function AuthPage() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const fallbackIPLocation = async () => {
+    setLocating(true);
+    try {
+      // Try ipapi.co
+      let response = await fetch("https://ipapi.co/json/");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.latitude && data.longitude) {
+          setLatitude(data.latitude);
+          setLongitude(data.longitude);
+          if (data.city && !locationName) {
+            setLocationName(data.city);
+          }
+          setLocating(false);
+          toast.success("Location estimated successfully!");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("ipapi.co fallback failed:", e);
+    }
+
+    try {
+      // Try freeipapi.com
+      let response = await fetch("https://freeipapi.com/api/json");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.latitude && data.longitude) {
+          setLatitude(data.latitude);
+          setLongitude(data.longitude);
+          if (data.cityName && !locationName) {
+            setLocationName(data.cityName);
+          }
+          setLocating(false);
+          toast.success("Location estimated successfully!");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("freeipapi.com fallback failed:", e);
+    }
+
+    setLocating(false);
+    toast.error("Could not estimate location. Please enter manually.");
+  };
+
   const detectLocation = () => {
     if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser.");
+      fallbackIPLocation();
       return;
     }
     setLocating(true);
     toast.info("Fetching GPS coordinates...");
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLatitude(position.coords.latitude);
-        setLongitude(position.coords.longitude);
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        setLatitude(lat);
+        setLongitude(lon);
+        
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/auth/reverse-geocode?latitude=${lat}&longitude=${lon}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.location_name) {
+              setLocationName(data.location_name);
+              toast.success(`GPS location detected: ${data.location_name}`);
+            } else {
+              toast.success("GPS location coordinates detected successfully!");
+            }
+          } else {
+            toast.success("GPS location coordinates detected successfully!");
+          }
+        } catch (e) {
+          console.error("Reverse geocoding failed:", e);
+          toast.success("GPS location coordinates detected successfully!");
+        }
         setLocating(false);
-        toast.success("GPS location detected successfully!");
       },
       (error) => {
-        setLocating(false);
-        toast.error("Could not detect GPS coordinates. Please enter manually.");
+        console.warn("Browser geolocation failed, trying IP fallback...", error);
+        fallbackIPLocation();
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 5000 }
     );
   };
 
@@ -105,11 +170,29 @@ function AuthPage() {
           longitude !== "" ? Number(longitude) : undefined,
           phone || undefined
         );
-        toast.success("Account created! Verification code sent to email.");
+        toast.success("Verification code sent to your email. Verify to complete registration.");
       }
       setStep("otp");
     } catch (err: any) {
       toast.error(err.message || "Failed to process request. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await api.auth.resendOtp(email, activeTab);
+      toast.success("A new verification code has been sent to your email.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to resend verification code. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -125,8 +208,8 @@ function AuthPage() {
     setLoading(true);
     try {
       const res = await api.auth.verifyOtp(email, otp);
-      localStorage.setItem("token", res.access_token);
-      localStorage.setItem("user", JSON.stringify(res.user));
+      sessionStorage.setItem("token", res.access_token);
+      sessionStorage.setItem("user", JSON.stringify(res.user));
       
       toast.success(`Welcome back, ${res.user.name}!`);
       navigate({ to: redirectPath });
@@ -339,7 +422,7 @@ function AuthPage() {
                     Didn't receive the email?{" "}
                     <button
                       type="button"
-                      onClick={handleRequestOtp}
+                      onClick={handleResendOtp}
                       className="text-primary font-semibold hover:underline"
                     >
                       Resend code

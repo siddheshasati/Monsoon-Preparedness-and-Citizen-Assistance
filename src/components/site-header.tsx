@@ -9,7 +9,7 @@ export function SiteHeader() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user");
+      const stored = sessionStorage.getItem("user");
       if (stored) {
         try {
           setUser(JSON.parse(stored));
@@ -21,6 +21,8 @@ export function SiteHeader() {
   }, []);
 
   const handleLogout = () => {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);

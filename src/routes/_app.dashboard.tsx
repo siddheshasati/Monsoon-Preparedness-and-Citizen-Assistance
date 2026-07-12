@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { api, WeatherResponse, ChecklistItem } from "@/lib/api";
+import { api, WeatherResponse, ChecklistItem, API_BASE_URL } from "@/lib/api";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -63,7 +63,7 @@ function Dashboard() {
   const [updating, setUpdating] = useState(false);
 
   const openEditModal = () => {
-    const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
     const user = userStr ? JSON.parse(userStr) : null;
     if (user) {
       setEditName(user.name || "");
@@ -76,25 +76,88 @@ function Dashboard() {
     setIsEditModalOpen(true);
   };
 
+  const fallbackEditIPLocation = async () => {
+    setEditLocating(true);
+    try {
+      let response = await fetch("https://ipapi.co/json/");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.latitude && data.longitude) {
+          setEditLatitude(data.latitude);
+          setEditLongitude(data.longitude);
+          if (data.city && !editLocationName) {
+            setEditLocationName(data.city);
+          }
+          setEditLocating(false);
+          toast.success("Location estimated successfully!");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("ipapi.co fallback failed:", e);
+    }
+
+    try {
+      let response = await fetch("https://freeipapi.com/api/json");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.latitude && data.longitude) {
+          setEditLatitude(data.latitude);
+          setEditLongitude(data.longitude);
+          if (data.cityName && !editLocationName) {
+            setEditLocationName(data.cityName);
+          }
+          setEditLocating(false);
+          toast.success("Location estimated successfully!");
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("freeipapi.com fallback failed:", e);
+    }
+
+    setEditLocating(false);
+    toast.error("Could not estimate location. Please enter manually.");
+  };
+
   const detectEditLocation = () => {
     if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser.");
+      fallbackEditIPLocation();
       return;
     }
     setEditLocating(true);
     toast.info("Fetching GPS coordinates...");
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setEditLatitude(position.coords.latitude);
-        setEditLongitude(position.coords.longitude);
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        setEditLatitude(lat);
+        setEditLongitude(lon);
+        
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/auth/reverse-geocode?latitude=${lat}&longitude=${lon}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.location_name) {
+              setEditLocationName(data.location_name);
+              toast.success(`GPS location updated: ${data.location_name}`);
+            } else {
+              toast.success("GPS location updated successfully!");
+            }
+          } else {
+            toast.success("GPS location updated successfully!");
+          }
+        } catch (e) {
+          console.error("Reverse geocoding failed:", e);
+          toast.success("GPS location updated successfully!");
+        }
         setEditLocating(false);
-        toast.success("GPS location updated successfully!");
       },
       (error) => {
-        setEditLocating(false);
-        toast.error("Could not detect GPS coordinates. Please enter location manually.");
+        console.warn("Browser geolocation failed, trying IP fallback...", error);
+        fallbackEditIPLocation();
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 5000 }
     );
   };
 
@@ -110,7 +173,7 @@ function Dashboard() {
         longitude: editLongitude !== "" ? Number(editLongitude) : null,
         role: editRole,
       });
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      sessionStorage.setItem("user", JSON.stringify(updatedUser));
       toast.success("Profile details updated successfully!");
       setIsEditModalOpen(false);
       

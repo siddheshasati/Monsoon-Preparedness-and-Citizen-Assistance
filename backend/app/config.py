@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
-load_dotenv()
+# Resolve .env path dynamically relative to this file
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 def _get_database_url() -> str:
     db_url = os.getenv("DATABASE_URL")

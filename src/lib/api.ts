@@ -12,7 +12,7 @@ const getApiUrl = () => {
 export const API_BASE_URL = getApiUrl();
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem("token");
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   
   const headers = new Headers(options.headers);
   if (token && !headers.has("Authorization")) {
@@ -31,18 +31,24 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      // Force redirect if not on auth page
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
-        window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname)}`;
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        // Force redirect if not on auth page
+        if (!window.location.pathname.startsWith("/auth")) {
+          window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname)}`;
+        }
       }
     }
     const errText = await response.text();
     let message = "An error occurred";
     try {
       const parsed = JSON.parse(errText);
-      message = parsed.detail || parsed.message || message;
+      if (Array.isArray(parsed.detail)) {
+        message = parsed.detail.map((d: any) => `${d.loc.join('.')}: ${d.msg}`).join(', ');
+      } else {
+        message = parsed.detail || parsed.message || message;
+      }
     } catch {
       message = errText || message;
     }
@@ -164,6 +170,11 @@ export const api = {
       request<AuthResponse>("/api/auth/verify-otp", {
         method: "POST",
         body: JSON.stringify({ email, otp }),
+      }),
+    resendOtp: (email: string, action: "register" | "login") =>
+      request<{ message: string; email: string }>("/api/auth/resend-otp", {
+        method: "POST",
+        body: JSON.stringify({ email, action }),
       }),
     getMe: () => request<UserResponse>("/api/auth/me"),
     updateMe: (payload: {

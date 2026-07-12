@@ -35,7 +35,7 @@ function SOS() {
     setBroadcasting(true);
     toast.info("Fetching GPS coordinates...");
 
-    const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
     const user = userStr ? JSON.parse(userStr) : null;
     const defaultLat = user?.latitude ?? 0.0;
     const defaultLng = user?.longitude ?? 0.0;
@@ -75,7 +75,7 @@ function SOS() {
     }
   };
 
-  const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
   const user = userStr ? JSON.parse(userStr) : null;
 
   return (
