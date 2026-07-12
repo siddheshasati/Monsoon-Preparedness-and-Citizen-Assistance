@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db, User, OTPRecord
 from backend.app.auth import create_access_token, get_current_user, get_password_hash, verify_password
 from backend.app.utils.smtp import send_otp_email
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -128,6 +130,7 @@ async def login(payload: LoginSchema, db: Session = Depends(get_db)):
         )
     
     # Generate Access Token directly (no OTP needed for sign in anymore)
+    logger.info(f"User {user.email} logged in directly with password. No OTP/SMTP email sent.")
     access_token = create_access_token(data={"sub": user.email, "role": user.role})
     
     return {
