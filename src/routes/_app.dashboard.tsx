@@ -3,13 +3,22 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import {
   CloudRain, Droplets, Wind, Gauge, Eye,
-  ShieldAlert, Sparkles, Users, MapPin, Navigation, Home,
+  ShieldAlert, Sparkles, Users, MapPin, Navigation, Home, Shield
 } from "lucide-react";
 import {
   Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { api, WeatherResponse, ChecklistItem } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -41,6 +50,83 @@ function Dashboard() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Profile update modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editLocationName, setEditLocationName] = useState("");
+  const [editLatitude, setEditLatitude] = useState<number | "">("");
+  const [editLongitude, setEditLongitude] = useState<number | "">("");
+  const [editRole, setEditRole] = useState("citizen");
+  const [editLocating, setEditLocating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  const openEditModal = () => {
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    const user = userStr ? JSON.parse(userStr) : null;
+    if (user) {
+      setEditName(user.name || "");
+      setEditPhone(user.phone || "");
+      setEditLocationName(user.location_name || "");
+      setEditLatitude(user.latitude ?? "");
+      setEditLongitude(user.longitude ?? "");
+      setEditRole(user.role || "citizen");
+    }
+    setIsEditModalOpen(true);
+  };
+
+  const detectEditLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser.");
+      return;
+    }
+    setEditLocating(true);
+    toast.info("Fetching GPS coordinates...");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setEditLatitude(position.coords.latitude);
+        setEditLongitude(position.coords.longitude);
+        setEditLocating(false);
+        toast.success("GPS location updated successfully!");
+      },
+      (error) => {
+        setEditLocating(false);
+        toast.error("Could not detect GPS coordinates. Please enter location manually.");
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdating(true);
+    try {
+      const updatedUser = await api.auth.updateMe({
+        name: editName,
+        phone: editPhone || undefined,
+        location_name: editLocationName,
+        latitude: editLatitude !== "" ? Number(editLatitude) : null,
+        longitude: editLongitude !== "" ? Number(editLongitude) : null,
+        role: editRole,
+      });
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      toast.success("Profile details updated successfully!");
+      setIsEditModalOpen(false);
+      
+      // Update weather city display immediately
+      if (weather) {
+        setWeather({
+          ...weather,
+          city: updatedUser.location_name || weather.city
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update profile.");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -125,8 +211,13 @@ function Dashboard() {
           <div className="text-xs font-semibold uppercase tracking-widest text-primary">
             Good evening · {weather.city}
           </div>
-          <h1 className="mt-1 font-display text-4xl font-bold">Your monsoon briefing</h1>
-          <p className="text-sm text-muted-foreground">Updated {new Date(weather.updatedAt).toLocaleTimeString()}</p>
+          <div className="flex items-center gap-3 mt-1">
+            <h1 className="font-display text-4xl font-bold">Your monsoon briefing</h1>
+            <Button variant="outline" size="sm" onClick={openEditModal} className="glass rounded-xl h-8 text-xs font-medium border-white/60 bg-white/20">
+              ⚙️ Update Details
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">Updated {new Date(weather.updatedAt).toLocaleTimeString()}</p>
         </div>
         <div className="glass flex items-center gap-3 rounded-2xl px-4 py-3">
           <div className="animate-float text-4xl">🌧️</div>
@@ -333,6 +424,108 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="glass border border-white/60 bg-white/80 max-w-md rounded-3xl p-6 backdrop-blur-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
+              Update Profile Details
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateProfile} className="space-y-4 mt-2">
+            <div className="space-y-1">
+              <Label htmlFor="editName" className="text-xs font-semibold text-muted-foreground">Full Name</Label>
+              <Input
+                id="editName"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder=""
+                className="glass border-white/60 h-10"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="editPhone" className="text-xs font-semibold text-muted-foreground">Phone Number</Label>
+              <Input
+                id="editPhone"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                placeholder=""
+                className="glass border-white/60 h-10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="editLocationName" className="text-xs font-semibold text-muted-foreground">Address / City</Label>
+                <button
+                  type="button"
+                  onClick={detectEditLocation}
+                  disabled={editLocating}
+                  className="text-[11px] text-primary font-semibold hover:underline flex items-center gap-1"
+                >
+                  📍 {editLocating ? "Locating..." : "Detect GPS"}
+                </button>
+              </div>
+              <Input
+                id="editLocationName"
+                value={editLocationName}
+                onChange={(e) => setEditLocationName(e.target.value)}
+                placeholder=""
+                className="glass border-white/60 h-10"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-muted-foreground">Profile Role</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "citizen", label: "Citizen" },
+                  { id: "volunteer", label: "Volunteer" },
+                  { id: "ngo", label: "NGO Member" },
+                  { id: "admin", label: "Govt Official" },
+                ].map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setEditRole(r.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+                      editRole === r.id
+                        ? "gradient-hero text-white border-transparent shadow-elegant"
+                        : "bg-white/40 border-white/60 text-muted-foreground hover:bg-white/60"
+                    }`}
+                  >
+                    <Shield className="h-3.5 w-3.5" />
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsEditModalOpen(false)}
+                className="flex-1 rounded-xl h-11"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={updating}
+                className="flex-1 gradient-hero border-0 text-white shadow-elegant h-11 rounded-xl font-medium"
+              >
+                {updating ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

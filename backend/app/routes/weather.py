@@ -98,14 +98,16 @@ async def get_current_weather(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user)
 ):
-    lat = 19.0760
-    lon = 72.8777
-    city = "Mumbai"
+    lat = 0.0
+    lon = 0.0
+    city = "Unknown Location"
 
-    if current_user and current_user.latitude and current_user.longitude:
-        lat = current_user.latitude
-        lon = current_user.longitude
-        city = current_user.location_name or "Your Location"
+    if current_user:
+        if current_user.latitude is not None and current_user.longitude is not None:
+            lat = current_user.latitude
+            lon = current_user.longitude
+        if current_user.location_name:
+            city = current_user.location_name
 
     # Default generated values
     gen_data = generate_location_weather(lat, lon, city)
@@ -179,14 +181,16 @@ async def get_current_weather(
 
 @router.get("/forecast")
 async def get_weather_forecast(current_user: User | None = Depends(get_current_user)):
-    lat = 19.0760
-    lon = 72.8777
-    city = "Mumbai"
+    lat = 0.0
+    lon = 0.0
+    city = "Unknown Location"
 
-    if current_user and current_user.latitude and current_user.longitude:
-        lat = current_user.latitude
-        lon = current_user.longitude
-        city = current_user.location_name or "Your Location"
+    if current_user:
+        if current_user.latitude is not None and current_user.longitude is not None:
+            lat = current_user.latitude
+            lon = current_user.longitude
+        if current_user.location_name:
+            city = current_user.location_name
         
     forecasts = generate_forecasts(lat, lon, city)
     return forecasts

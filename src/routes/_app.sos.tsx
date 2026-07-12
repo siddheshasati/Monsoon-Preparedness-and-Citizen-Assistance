@@ -35,9 +35,15 @@ function SOS() {
     setBroadcasting(true);
     toast.info("Fetching GPS coordinates...");
 
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    const user = userStr ? JSON.parse(userStr) : null;
+    const defaultLat = user?.latitude ?? 0.0;
+    const defaultLng = user?.longitude ?? 0.0;
+    const defaultLoc = user?.location_name ?? "Profile Location";
+
     if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser. Using default city location.");
-      broadcastSOSRequest(19.0760, 72.8777, "Mumbai Center");
+      toast.error("Geolocation is not supported by your browser. Using profile location.");
+      broadcastSOSRequest(defaultLat, defaultLng, defaultLoc);
       return;
     }
 
@@ -45,11 +51,11 @@ function SOS() {
       (position) => {
         const { latitude, longitude } = position.coords;
         setGpsLocation({ lat: latitude, lng: longitude });
-        broadcastSOSRequest(latitude, longitude, "Bandra West, Mumbai");
+        broadcastSOSRequest(latitude, longitude, user?.location_name || "Current Location");
       },
       (error) => {
-        toast.error("Could not obtain GPS accuracy. Broadcasting default coordinates.");
-        broadcastSOSRequest(19.0544, 72.8402, "Bandra West (Default)");
+        toast.error("Could not obtain GPS accuracy. Broadcasting profile location.");
+        broadcastSOSRequest(defaultLat, defaultLng, defaultLoc);
       },
       { enableHighAccuracy: true, timeout: 5000 }
     );
@@ -68,6 +74,9 @@ function SOS() {
       setBroadcasting(false);
     }
   };
+
+  const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const user = userStr ? JSON.parse(userStr) : null;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6 lg:p-8">
@@ -117,7 +126,7 @@ function SOS() {
           <p className="text-sm text-muted-foreground">
             {gpsLocation 
               ? `Coordinates: ${gpsLocation.lat.toFixed(4)}, ${gpsLocation.lng.toFixed(4)} · GPS accuracy ±5m`
-              : "Bandra West, Mumbai (Waiting for trigger)"}
+              : `${user?.location_name || "Profile Location"} (Waiting for trigger)`}
           </p>
         </div>
       </div>

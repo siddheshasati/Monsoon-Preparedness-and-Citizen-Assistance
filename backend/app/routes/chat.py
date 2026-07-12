@@ -15,21 +15,20 @@ class ChatPayload(BaseModel):
     language: str = "English"
 
 # Rule-based fallback replies mirroring frontend fake replies
-def get_fallback_reply(query: str) -> str:
+def get_fallback_reply(query: str, current_user: User | None = None) -> str:
     q0 = query.lower()
+    loc = current_user.location_name if (current_user and current_user.location_name) else "your location"
     if any(k in q0 for k in ["travel", "safe", "route", "go out", "andheri"]):
-        return ("Not recommended right now. Andheri Subway is waterlogged and heavy rainfall (>50mm/hr) "
-                "is expected until 9 PM. Safer alternative: take the Metro from Bandra to Ghatkopar and "
-                "cab from there. I'll monitor and alert you when conditions improve.")
+        return (f"Not recommended to travel right now around {loc}. Main subways and low-lying areas are reported waterlogged, and heavy rainfall "
+                "is expected until late evening. Safer alternative: take elevated metro lines or stay indoors. I'll monitor and alert you when conditions improve.")
     if any(k in q0 for k in ["kit", "bag", "items", "checklist"]):
         return ("Here's your personalized kit: 🔦 torch + spare batteries, 🩹 first-aid, 💊 3-day medication, "
                 "🥫 dry food (3 days), 💧 6L water/person, 📱 power bank, 🆔 ID copies (waterproof pouch), "
                 "🔑 spare keys, 💵 ₹2000 cash, 🐕 pet supplies. Want me to order missing items?")
     if any(k in q0 for k in ["shelter", "hospital", "police"]):
-        return ("Closest is BMC School Shelter, Dadar (1.2 km, 118 beds free). Route via Tulsi Pipe Rd "
-                "avoids waterlogged Hindmata. Want me to share your ETA with family?")
-    return ("I've pulled the latest weather, flood risk and community reports around you. "
-            "Rainfall will peak at 8 PM (~22mm/hr). Recommend staying indoors, moving valuables "
+        return (f"Please check the safety relief shelters section on your dashboard. It displays official municipal shelters sorted by distance from {loc}. Route maps are available to help you avoid waterlogged streets. Want me to share your status with emergency contacts?")
+    return (f"I've pulled the latest weather, flood risk and community reports around {loc}. "
+            "Rainfall will peak soon. Recommend staying indoors, moving valuables "
             "above ground floor, and charging devices. Anything specific I should help with?")
 
 @router.post("")
@@ -89,5 +88,6 @@ async def chat_assistant(
             pass  # Fallback to local rule engine if Groq fails
             
     # Fallback to local rules
-    reply_text = get_fallback_reply(user_query)
+    reply_text = get_fallback_reply(user_query, current_user)
     return {"role": "ai", "text": reply_text}
+

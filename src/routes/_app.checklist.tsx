@@ -28,7 +28,11 @@ function Checklist() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Form states for AI regeneration
-  const [location, setLocation] = useState("Mumbai");
+  const [location, setLocation] = useState(() => {
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    const user = userStr ? JSON.parse(userStr) : null;
+    return user?.location_name || "";
+  });
   const [householdSize, setHouseholdSize] = useState(3);
   const [hasElderly, setHasElderly] = useState(false);
   const [hasChildren, setHasChildren] = useState(false);
@@ -169,7 +173,7 @@ function Checklist() {
                 id="location"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Bandra West, Mumbai"
+                placeholder=""
                 className="glass border-white/60 h-10"
                 required
               />

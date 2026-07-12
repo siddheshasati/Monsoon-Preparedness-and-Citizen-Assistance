@@ -73,7 +73,7 @@ function Landing() {
             <div className="glass rounded-3xl p-6 shadow-elegant">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-medium text-muted-foreground">MUMBAI · LIVE</div>
+                  <div className="text-xs font-medium text-muted-foreground">LIVE WEATHER</div>
                   <div className="font-display text-4xl font-bold">27°C · Heavy Rain</div>
                 </div>
                 <div className="animate-float text-6xl">🌧️</div>
@@ -96,7 +96,7 @@ function Landing() {
                   <div>
                     <div className="text-xs font-semibold text-primary">AI Recommendation</div>
                     <p className="mt-1 text-sm">
-                      Heavy rainfall in the next 3 hours. Delay travel to Andheri; shelter at Dadar BMC hall is 1.2 km away.
+                      Heavy rainfall in the next 3 hours. Avoid low-lying areas and check your safety dashboard for real-time local updates.
                     </p>
                   </div>
                 </div>

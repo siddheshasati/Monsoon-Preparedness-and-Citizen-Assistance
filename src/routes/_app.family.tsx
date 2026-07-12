@@ -156,13 +156,13 @@ function Family() {
           </DialogHeader>
 
           <form onSubmit={handleAddMember} className="space-y-4 mt-2">
-            <div className="space-y-1">
+             <div className="space-y-1">
               <Label htmlFor="memberName" className="text-xs font-semibold text-muted-foreground">Name</Label>
               <Input
                 id="memberName"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Arjun (Brother)"
+                placeholder=""
                 className="glass border-white/60 h-10"
                 required
               />
@@ -174,7 +174,7 @@ function Family() {
                 id="memberLoc"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Andheri West, Mumbai"
+                placeholder=""
                 className="glass border-white/60 h-10"
                 required
               />
@@ -186,7 +186,7 @@ function Family() {
                 id="memberPhone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="e.g. +919876543210"
+                placeholder=""
                 className="glass border-white/60 h-10"
               />
             </div>

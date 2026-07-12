@@ -76,9 +76,9 @@ async def get_nearby_shelters(
 ):
     shelters = db.query(Shelter).all()
     
-    # Calculate actual distance using user coordinates (default to Mumbai if none)
-    user_lat = current_user.latitude if (current_user and current_user.latitude is not None) else 19.0760
-    user_lon = current_user.longitude if (current_user and current_user.longitude is not None) else 72.8777
+    # Calculate actual distance using user coordinates (default to 0.0 if none)
+    user_lat = current_user.latitude if (current_user and current_user.latitude is not None) else 0.0
+    user_lon = current_user.longitude if (current_user and current_user.longitude is not None) else 0.0
     
     res = []
     for s in shelters:
@@ -127,7 +127,7 @@ async def create_shelter(
 async def broadcast_sos(
     latitude: float,
     longitude: float,
-    location_name: str = "Bandra West, Mumbai",
+    location_name: str = "Current Location",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

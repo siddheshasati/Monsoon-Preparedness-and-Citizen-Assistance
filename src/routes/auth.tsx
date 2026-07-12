@@ -96,18 +96,13 @@ function AuthPage() {
           setLoading(false);
           return;
         }
-        if (latitude === "" || longitude === "") {
-          toast.error("Please specify your coordinates (Latitude/Longitude).");
-          setLoading(false);
-          return;
-        }
         await api.auth.register(
           name,
           email,
           role,
           locationName,
-          Number(latitude),
-          Number(longitude),
+          latitude !== "" ? Number(latitude) : undefined,
+          longitude !== "" ? Number(longitude) : undefined,
           phone || undefined
         );
         toast.success("Account created! Verification code sent to email.");
@@ -187,7 +182,7 @@ function AuthPage() {
                           <User className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                           <Input
                             id="name"
-                            placeholder="John Doe"
+                            placeholder=""
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="pl-10 glass border-white/60 h-11"
@@ -204,7 +199,7 @@ function AuthPage() {
                         <Input
                           id="email"
                           type="email"
-                          placeholder="name@example.com"
+                          placeholder=""
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="pl-10 glass border-white/60 h-11"
@@ -219,7 +214,7 @@ function AuthPage() {
                           <Label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Phone Number</Label>
                           <Input
                             id="phone"
-                            placeholder="+919876543210"
+                            placeholder=""
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             className="glass border-white/60 h-11"
@@ -240,41 +235,12 @@ function AuthPage() {
                           </div>
                           <Input
                             id="locationName"
-                            placeholder="e.g. Bandra West, Mumbai"
+                            placeholder=""
                             value={locationName}
                             onChange={(e) => setLocationName(e.target.value)}
                             className="glass border-white/60 h-11"
                             required
                           />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="latitude" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Latitude</Label>
-                            <Input
-                              id="latitude"
-                              type="number"
-                              step="0.000001"
-                              placeholder="19.0544"
-                              value={latitude}
-                              onChange={(e) => setLatitude(e.target.value === "" ? "" : Number(e.target.value))}
-                              className="glass border-white/60 h-11"
-                              required
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="longitude" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Longitude</Label>
-                            <Input
-                              id="longitude"
-                              type="number"
-                              step="0.000001"
-                              placeholder="72.8402"
-                              value={longitude}
-                              onChange={(e) => setLongitude(e.target.value === "" ? "" : Number(e.target.value))}
-                              className="glass border-white/60 h-11"
-                              required
-                            />
-                          </div>
                         </div>
                       </>
                     )}

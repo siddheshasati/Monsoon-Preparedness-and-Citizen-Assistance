@@ -147,8 +147,8 @@ export const api = {
       email: string,
       role: string,
       location_name: string,
-      latitude: number,
-      longitude: number,
+      latitude?: number,
+      longitude?: number,
       phone?: string
     ) =>
       request<{ message: string; email: string }>("/api/auth/register", {
@@ -166,6 +166,18 @@ export const api = {
         body: JSON.stringify({ email, otp }),
       }),
     getMe: () => request<UserResponse>("/api/auth/me"),
+    updateMe: (payload: {
+      name?: string;
+      phone?: string;
+      location_name?: string;
+      latitude?: number | null;
+      longitude?: number | null;
+      role?: string;
+    }) =>
+      request<UserResponse>("/api/auth/me", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
   },
 
   // Weather

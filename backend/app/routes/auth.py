@@ -14,9 +14,18 @@ class RegisterSchema(BaseModel):
     name: str
     role: str = "citizen"  # citizen, volunteer, ngo, admin
     location_name: str
-    latitude: float
-    longitude: float
+    latitude: float | None = None
+    longitude: float | None = None
     phone: str | None = None
+
+class UserUpdateSchema(BaseModel):
+    name: str | None = None
+    phone: str | None = None
+    location_name: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    role: str | None = None
+
 
 class LoginSchema(BaseModel):
     email: EmailStr
@@ -160,3 +169,44 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
         "longitude": current_user.longitude,
         "created_at": current_user.created_at
     }
+
+@router.put("/me")
+async def update_users_me(
+    payload: UserUpdateSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if payload.name is not None:
+        current_user.name = payload.name
+    if payload.phone is not None:
+        current_user.phone = payload.phone
+    if payload.location_name is not None:
+        current_user.location_name = payload.location_name
+    if payload.latitude is not None:
+        current_user.latitude = payload.latitude
+    if payload.longitude is not None:
+        current_user.longitude = payload.longitude
+    if payload.role is not None:
+        valid_roles = ["citizen", "volunteer", "ngo", "admin"]
+        if payload.role.lower() not in valid_roles:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}"
+            )
+        current_user.role = payload.role.lower()
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role,
+        "phone": current_user.phone,
+        "location_name": current_user.location_name,
+        "latitude": current_user.latitude,
+        "longitude": current_user.longitude,
+        "created_at": current_user.created_at
+    }
+
