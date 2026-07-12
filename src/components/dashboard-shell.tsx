@@ -31,7 +31,11 @@ export function DashboardShell() {
     sessionStorage.removeItem("user");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate({ to: "/auth", search: { redirect: loc.pathname } });
+    if (loc.pathname !== "/auth") {
+      navigate({ to: "/auth", search: { redirect: loc.pathname } });
+    } else {
+      navigate({ to: "/auth" });
+    }
     return null;
   }
 
@@ -40,7 +44,11 @@ export function DashboardShell() {
       const token = sessionStorage.getItem("token");
       if (!token) {
         sessionStorage.removeItem("user");
-        navigate({ to: "/auth", search: { redirect: loc.pathname } });
+        if (loc.pathname !== "/auth") {
+          navigate({ to: "/auth", search: { redirect: loc.pathname } });
+        } else {
+          navigate({ to: "/auth" });
+        }
         return;
       }
       try {
@@ -51,7 +59,11 @@ export function DashboardShell() {
         console.error("Session verification failed", e);
         sessionStorage.removeItem("token");
         sessionStorage.removeItem("user");
-        navigate({ to: "/auth", search: { redirect: loc.pathname } });
+        if (loc.pathname !== "/auth") {
+          navigate({ to: "/auth", search: { redirect: loc.pathname } });
+        } else {
+          navigate({ to: "/auth" });
+        }
       }
     }
     verifySession();
