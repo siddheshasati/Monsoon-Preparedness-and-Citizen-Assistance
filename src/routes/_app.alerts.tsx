@@ -56,14 +56,9 @@ function Alerts() {
   useEffect(() => {
     loadAlerts();
     
-    const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
-    if (userStr) {
-      try {
-        const u = JSON.parse(userStr);
-        setUserRole(u.role || "citizen");
-      } catch (e) {
-        setUserRole("citizen");
-      }
+    const u = api.auth.getStoredUser();
+    if (u) {
+      setUserRole(u.role || "citizen");
     }
   }, []);
 

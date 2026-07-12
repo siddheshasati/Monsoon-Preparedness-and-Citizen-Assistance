@@ -190,6 +190,16 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(payload),
       }),
+    getStoredUser: (): UserResponse | null => {
+      if (typeof window === "undefined") return null;
+      const stored = sessionStorage.getItem("user");
+      if (!stored || stored === "undefined") return null;
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return null;
+      }
+    },
   },
 
   // Weather

@@ -35,8 +35,7 @@ function SOS() {
     setBroadcasting(true);
     toast.info("Fetching GPS coordinates...");
 
-    const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
-    const user = userStr ? JSON.parse(userStr) : null;
+    const user = api.auth.getStoredUser();
     const defaultLat = user?.latitude ?? 0.0;
     const defaultLng = user?.longitude ?? 0.0;
     const defaultLoc = user?.location_name ?? "Profile Location";
@@ -75,8 +74,7 @@ function SOS() {
     }
   };
 
-  const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
-  const user = userStr ? JSON.parse(userStr) : null;
+  const user = api.auth.getStoredUser();
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6 lg:p-8">

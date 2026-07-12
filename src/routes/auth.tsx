@@ -155,9 +155,12 @@ function AuthPage() {
           return;
         }
         const res = await api.auth.login(email, password);
+        if (!res || !res.access_token || !res.user) {
+          throw new Error("Invalid response from server: Access token or user info is missing.");
+        }
         sessionStorage.setItem("token", res.access_token);
         sessionStorage.setItem("user", JSON.stringify(res.user));
-        toast.success(`Welcome back, ${res.user.name}!`);
+        toast.success(`Welcome back, ${res.user.name || "User"}!`);
         navigate({ to: redirectPath });
         return;
       } else {
@@ -224,10 +227,13 @@ function AuthPage() {
     setLoading(true);
     try {
       const res = await api.auth.verifyOtp(email, otp);
+      if (!res || !res.access_token || !res.user) {
+        throw new Error("Invalid response from server: Access token or user info is missing.");
+      }
       sessionStorage.setItem("token", res.access_token);
       sessionStorage.setItem("user", JSON.stringify(res.user));
       
-      toast.success(`Welcome back, ${res.user.name}!`);
+      toast.success(`Welcome back, ${res.user.name || "User"}!`);
       navigate({ to: redirectPath });
     } catch (err: any) {
       toast.error(err.message || "Invalid or expired verification code.");

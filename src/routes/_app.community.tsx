@@ -61,21 +61,17 @@ function Community() {
   useEffect(() => {
     fetchReports();
 
-    const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
-    if (userStr) {
-      try {
-        const u = JSON.parse(userStr);
-        if (u.latitude && u.longitude) {
-          setUserLocation({
-            latitude: u.latitude,
-            longitude: u.longitude,
-            location_name: u.location_name
-          });
-          setLatitude(u.latitude);
-          setLongitude(u.longitude);
-        }
-      } catch (e) {
-        console.error("Failed to parse user from storage", e);
+    const u = api.auth.getStoredUser();
+    if (u) {
+      if (u.latitude && u.longitude) {
+        setUserLocation({
+          latitude: u.latitude,
+          longitude: u.longitude,
+          location_name: u.location_name
+        });
+        setLatitude(u.latitude);
+        setLongitude(u.longitude);
+        if (u.location_name) setLocationName(u.location_name);
       }
     }
   }, []);

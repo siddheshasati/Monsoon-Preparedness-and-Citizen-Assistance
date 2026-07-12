@@ -47,8 +47,8 @@ function Badges() {
   const hasStartedChecklist = doneCount > 0;
   
   // Mock username for tracking user hazard reports
-  const userString = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
-  const username = userString ? JSON.parse(userString).name : "";
+  const user = api.auth.getStoredUser();
+  const username = user?.name || "";
   const reportedCount = hazards.filter(h => h.status === "active").length; // count active alerts
 
   const badgesList = [

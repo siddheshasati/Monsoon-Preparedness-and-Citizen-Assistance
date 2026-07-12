@@ -2,22 +2,14 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { CloudRain, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 export function SiteHeader() {
   const navigate = useNavigate();
   const [user, setUser] = useState<{ name: string; role: string } | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = sessionStorage.getItem("user");
-      if (stored) {
-        try {
-          setUser(JSON.parse(stored));
-        } catch {
-          // ignore
-        }
-      }
-    }
+    setUser(api.auth.getStoredUser());
   }, []);
 
   const handleLogout = () => {

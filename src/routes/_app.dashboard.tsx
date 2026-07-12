@@ -63,8 +63,7 @@ function Dashboard() {
   const [updating, setUpdating] = useState(false);
 
   const openEditModal = () => {
-    const userStr = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
-    const user = userStr ? JSON.parse(userStr) : null;
+    const user = api.auth.getStoredUser();
     if (user) {
       setEditName(user.name || "");
       setEditPhone(user.phone || "");
